@@ -15,73 +15,128 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# LOGO - save as "logo.png" in the same folder as this script for full branding
 logo_path = "logo.png"
 if os.path.exists(logo_path):
     st.image(logo_path, width=420)
 else:
-    st.warning("👉 Please save the IG Chemical Solutions logo as **logo.png** in the same folder as this script for full branding.")
+    st.warning("👉 Save the IG Chemical Solutions logo as **logo.png** in the same folder as this script.")
 
 st.markdown('<h1 class="main-header">IG Chemical Solutions</h1>', unsafe_allow_html=True)
 st.markdown('<p class="tagline">A New Element in Chemistry • AlkaBoost™ CIP Additive Cost-Savings Calculator</p>', unsafe_allow_html=True)
-st.caption("Built from the official TDS • Comprehensive operating-cost model • Works for any industry (edible oil, sugar, chicken processing, canning, etc.)")
+st.caption("Built from the official TDS • Works for ANY CIP system (single-pass or recycled) • Any industry • US or Mexico")
+
+# ====================== SESSION STATE FOR UNIT CONVERSION ======================
+if 'last_units_imperial' not in st.session_state:
+    st.session_state.last_units_imperial = True
+if 'solution_volume' not in st.session_state:
+    st.session_state.solution_volume = 3650.0
+if 'water_cost_per_vol' not in st.session_state:
+    st.session_state.water_cost_per_vol = 0.012
 
 # ====================== SIDEBAR INPUTS ======================
 with st.sidebar:
-    st.header("📍 Location & Units")
-    location = st.selectbox("Customer Location (auto-fills NaOH market price)",
-                            ["United States (Domestic)", "Mexico", "Other / Custom"])
-    units = st.radio("Units System", ["Imperial (lb, gal, °F, USD)", "Metric (kg, L, °C, USD)"], horizontal=True)
+    st.header("📍 Customer Location & Units")
+    location = st.text_input("Customer Location (type city, region, or country)",
+                             value="United States",
+                             help="Type any location (e.g. Mexico City, Puebla, Queretaro, Laredo TX, Veracruz, United States). Auto-detects realistic NaOH market price.")
 
+    units = st.radio("Units System", ["Imperial (lb, gal, °F, USD)", "Metric (kg, L, °C, USD)"], horizontal=True, key="units_radio")
     is_imperial = units.startswith("Imperial")
-    density_factor = 8.34 if is_imperial else 1.0          # lb/gal or kg/L for dilute solutions
+
+    # Auto-convert volume & water cost when units change
+    current_is_imperial = is_imperial
+    if st.session_state.last_units_imperial != current_is_imperial:
+        conv = 3.78541
+        if current_is_imperial:  # switched TO imperial
+            st.session_state.solution_volume /= conv
+            st.session_state.water_cost_per_vol *= conv
+        else:  # switched TO metric
+            st.session_state.solution_volume *= conv
+            st.session_state.water_cost_per_vol /= conv
+        st.session_state.last_units_imperial = current_is_imperial
+        st.rerun()
+
+    density_factor = 8.34 if is_imperial else 1.0
     vol_unit = "gal" if is_imperial else "L"
     mass_unit = "lb" if is_imperial else "kg"
-    temp_unit = "°F" if is_imperial else "°C"
 
-    # NaOH price auto-fill based on location (April 2026 market averages for 50% liquid caustic delivered)
-    if location == "United States (Domestic)":
+    # NaOH price auto-detect from location text
+    loc_lower = location.lower()
+    if any(word in loc_lower for word in ["mexico", "puebla", "queretaro", "merida", "villa hermosa", "cancun", "veracruz", "laredo"]):
+        naoh_default = 0.72
+    elif any(word in loc_lower for word in ["united states", "usa", "us", "texas", "florida"]):
         naoh_default = 0.60
-    elif location == "Mexico":
-        naoh_default = 0.72   # slight premium for logistics/import
     else:
         naoh_default = 0.65
-    st.caption("💡 Auto-filled NaOH price reflects current market averages (override below with your customer's actual contract price)")
+
+    st.caption("💡 NaOH price auto-filled from current 2026 market averages (override below with customer's actual contract price)")
 
     st.subheader("Production Data")
-    cycles_per_year = st.number_input("CIP cycles per year", value=730, min_value=1, step=1)
-    solution_volume = st.number_input(f"Cleaning solution volume per CIP ({vol_unit})", value=5000.0, min_value=100.0)
+    cycles_per_year = st.number_input("CIP cycles per year", value=365, min_value=1, step=1,
+                                      help="Typical plants run 200–400 CIPs/year depending on production schedule. 365 = once per day average.")
 
-    st.subheader("Caustic & Cycle Parameters")
-    baseline_naoh_pct = st.number_input("Baseline NaOH concentration (%)", value=5.0, min_value=0.5, step=0.1)
-    naoh_reduction_factor = st.slider("NaOH reduction with AlkaBoost™ (your 30% rule of thumb)", 0.5, 1.0, 0.70, step=0.01)
-    cycle_reduction_pct = st.slider("Reduction in CIP frequency (%)", 0, 50, 0, step=1)
-    water_reduction_per_cycle_pct = st.slider("Additional water/rinse reduction per CIP (%)", 0, 30, 0, step=1)
+    solution_volume = st.number_input(f"Cleaning solution volume per CIP ({vol_unit})",
+                                      value=st.session_state.solution_volume,
+                                      min_value=100.0, key="vol_input",
+                                      help="Total volume of cleaning solution circulated in the CIP circuit (not just the tank size).")
 
-    st.subheader("AlkaBoost™ Pricing (Distributor View)")
-    packaging = st.selectbox("Your packaging to distributor",
-                             ["55-gal drums", "275/330 gal totes", "Bulk (>20K lbs)", "Custom"])
-    your_prices = {"55-gal drums": 2.15, "275/330 gal totes": 1.85, "Bulk (>20K lbs)": 1.65, "Custom": 0.0}
-    your_price_to_dist = your_prices[packaging] if packaging != "Custom" else st.number_input("Your custom price to distributor ($/lb or $/kg)", value=2.15, step=0.01)
-    freight_per_lb = st.number_input("Estimated freight to distributor/customer site ($ per lb or kg)", value=0.15 if location == "Mexico" else 0.0, step=0.01)
+    fresh_makeup_pct = st.slider("Fresh solution makeup per CIP cycle (%)",
+                                 min_value=10, max_value=100, value=100, step=5,
+                                 help="100% = single-pass / full fresh solution every cycle. Lower % for RECYCLED CIP systems (common in dairy/beverage) – only makeup chemicals are added each cycle.")
+
+    st.subheader("Caustic Parameters")
+    baseline_naoh_pct = st.number_input("Baseline NaOH concentration in use solution (%)",
+                                        value=5.0, min_value=0.5, step=0.1,
+                                        help="Typical set-point concentration before AlkaBoost™ (e.g. 3–5 %).")
+
+    naoh_reduction_pct = st.slider("NaOH consumption reduction with AlkaBoost™ (%)",
+                                   0, 50, 30, step=1,
+                                   help="How much less caustic is needed while still achieving equal or better cleaning (your typical field result).")
+
+    cycle_reduction_pct = st.slider("Reduction in CIP frequency (%)", 0, 50, 0, step=1,
+                                    help="Extra cycles saved because better cleaning means fewer CIPs are required over time.")
+
+    water_reduction_per_cycle_pct = st.slider("Additional water/rinse reduction per CIP (%)", 0, 30, 0, step=1,
+                                              help="Extra water savings from improved wetting and lower foam (beyond frequency reduction).")
+
+    st.subheader("AlkaBoost™ & Pricing")
+    your_price_to_dist = st.number_input(f"Your price to distributor per {mass_unit}",
+                                         value=2.15, min_value=0.0, step=0.01,
+                                         help="Your selling price to the distributor (drums, totes, or bulk – whatever tier you quote).")
+    freight_per_lb = st.number_input("Estimated freight to distributor/customer site ($ per lb or kg)",
+                                     value=0.15 if "mexico" in loc_lower else 0.0, step=0.01,
+                                     help="Extra shipping cost for bulk truckload to Laredo, Florida ports, Veracruz, etc.")
     distributor_landed_cost = your_price_to_dist + freight_per_lb
 
-    st.subheader("Customer-Facing Additive Price")
-    additive_price = st.number_input(f"Customer quoted AlkaBoost™ price per {mass_unit}", value=2.50, min_value=0.0, step=0.01)
+    additive_price = st.number_input(f"Customer quoted AlkaBoost™ price per {mass_unit}",
+                                     value=2.50, min_value=0.0, step=0.01,
+                                     help="The price the end-customer actually pays (distributor adds their markup).")
 
-    st.subheader("Costs & Other Savings")
-    naoh_price = st.number_input(f"NaOH price per {mass_unit} (auto-filled above)", value=naoh_default, step=0.01)
-    energy_cost_per_cycle = st.number_input("Baseline energy cost per CIP ($)", value=45.0, step=1.0)
-    energy_savings_pct = st.slider("Energy savings % (lower temp/shorter time)", 0, 40, 15, step=5)
-    water_cost_per_vol = st.number_input(f"Water + wastewater cost per {vol_unit}", value=0.012 if is_imperial else 0.0032, step=0.001)
-    labor_cost_per_cycle = st.number_input("Labor + downtime cost per CIP ($)", value=120.0, step=5.0)
-    maintenance_savings_per_year = st.number_input("Annual maintenance/equipment-life savings ($)", value=2500.0, step=100.0)
+    st.subheader("Operating Costs & Savings")
+    naoh_price = st.number_input(f"NaOH price per {mass_unit} (auto-filled)",
+                                 value=naoh_default, step=0.01,
+                                 help="Customer's actual delivered price for 50% liquid caustic.")
+    energy_cost_per_cycle = st.number_input("Baseline energy cost per CIP ($)", value=45.0, step=1.0,
+                                            help="Steam / electricity to heat and maintain temperature.")
+    energy_savings_pct = st.slider("Energy savings % (lower temp/shorter time)", 0, 40, 15, step=5,
+                                   help="Savings from reduced temperature or shorter cycle enabled by AlkaBoost™.")
+    water_cost_per_vol = st.number_input(f"Water + wastewater cost per {vol_unit}",
+                                         value=st.session_state.water_cost_per_vol, key="water_input",
+                                         step=0.001,
+                                         help="Fresh water + treatment / disposal / surcharges.")
+    labor_cost_per_cycle = st.number_input("Labor + downtime cost per CIP ($)", value=120.0, step=5.0,
+                                           help="Operator time + lost production value.")
+    maintenance_savings_per_year = st.number_input("Annual maintenance/equipment-life savings ($)", value=2500.0, step=100.0,
+                                                   help="Reduced corrosion, scale, gasket wear, etc.")
     other_chemical_savings_annual = st.number_input("Other chemical (acid/sanitizer) savings per year ($)", value=0.0, step=100.0)
 
 # ====================== CALCULATIONS ======================
-naoh_baseline_per_cycle = solution_volume * (baseline_naoh_pct / 100) * density_factor
-naoh_with_per_cycle = solution_volume * (baseline_naoh_pct * naoh_reduction_factor / 100) * density_factor
-additive_per_cycle = naoh_with_per_cycle * 0.10                     # 10% of NaOH weight per TDS
+chemical_volume_factor = fresh_makeup_pct / 100.0
+
+naoh_baseline_per_cycle = solution_volume * (baseline_naoh_pct / 100) * density_factor * chemical_volume_factor
+naoh_with_per_cycle = naoh_baseline_per_cycle * (1 - naoh_reduction_pct / 100)
+
+additive_per_cycle = naoh_with_per_cycle * 0.10   # 10% of NaOH weight per TDS
 
 cycles_with = cycles_per_year * (1 - cycle_reduction_pct / 100)
 
@@ -92,7 +147,6 @@ additive_annual = additive_per_cycle * cycles_with
 baseline_chemical_cost = naoh_baseline_annual * naoh_price
 with_chemical_cost = naoh_with_annual * naoh_price + additive_annual * additive_price
 
-# Water savings (frequency reduction + per-cycle reduction)
 total_water_savings_annual = (
     solution_volume * water_cost_per_vol * cycles_per_year * (cycle_reduction_pct / 100) +
     solution_volume * water_cost_per_vol * cycles_with * (water_reduction_per_cycle_pct / 100)
@@ -151,15 +205,14 @@ df_summary = pd.DataFrame({
 })
 st.dataframe(df_summary, use_container_width=True, hide_index=True)
 
-st.info("**Dosing per TDS:** AlkaBoost™ = 10 % by weight of the NaOH in the use solution. All savings are annualized and fully customizable.")
+st.info("**Dosing per TDS:** AlkaBoost™ = 10 % by weight of the NaOH in the use solution. Recycled CIP systems are now fully supported via the fresh-makeup % slider.")
 
 # ====================== DISTRIBUTOR MARGIN EXPANDER ======================
-with st.expander("🔍 Distributor Margin Analysis (your tiered pricing + freight)"):
-    st.write(f"Your price to distributor: **${your_price_to_dist:.2f}** per {mass_unit} ({packaging})")
-    st.write(f"Freight to site: **${freight_per_lb:.2f}** per {mass_unit}")
+with st.expander("🔍 Distributor Margin Analysis"):
+    st.write(f"Your price to distributor: **${your_price_to_dist:.2f}** per {mass_unit}")
+    st.write(f"Freight: **${freight_per_lb:.2f}** per {mass_unit}")
     st.write(f"**Distributor landed cost:** ${distributor_landed_cost:.2f}")
-    st.write(f"**Maximum customer price they can charge while still delivering positive ROI:** ${break_even_price:.2f}")
-    st.success(f"**Distributor has ${max(0, break_even_price - distributor_landed_cost):.2f} per {mass_unit} of margin room** (before their own operating costs)")
+    st.success(f"**Distributor has ${max(0, break_even_price - distributor_landed_cost):.2f} per {mass_unit} of margin room**")
 
 # ====================== DOWNLOADS ======================
 csv = df_summary.to_csv(index=False).encode()
@@ -170,12 +223,10 @@ def create_pdf_report():
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
-
     c.setFont("Helvetica-Bold", 20)
     c.drawString(50, height - 50, "IG Chemical Solutions – AlkaBoost™ CIP Savings Report")
     c.setFont("Helvetica", 12)
     c.drawString(50, height - 80, f"Location: {location} • Units: {units} • Generated: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
-
     y = height - 130
     for i, row in df_summary.iterrows():
         c.drawString(50, y, f"{row['Metric']}: {row['Value']}")
@@ -183,9 +234,8 @@ def create_pdf_report():
         if y < 100:
             c.showPage()
             y = height - 50
-
     c.setFont("Helvetica-Oblique", 10)
-    c.drawString(50, 50, "Powered by the official AlkaBoost™ TDS • Comprehensive model includes chemicals, energy, water, labor, maintenance & freight")
+    c.drawString(50, 50, "Powered by the official AlkaBoost™ TDS • Includes recycled CIP systems, energy, water, labor, maintenance & freight")
     c.save()
     buffer.seek(0)
     return buffer
@@ -197,4 +247,4 @@ st.download_button("📄 Save as Professional PDF Report",
                    file_name="AlkaBoost_CIP_Savings_Report.pdf",
                    mime="application/pdf")
 
-st.caption("✅ Fully branded • Handles US or Mexico freight • Auto NaOH pricing • Unlimited industries • Ready for your Mexico distributor")
+st.caption("✅ All your requested edits applied • Hover tooltips on every input • Auto unit conversion • Realistic defaults • Recycled CIP support")
