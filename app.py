@@ -23,9 +23,9 @@ if os.path.exists(logo_path):
 else:
     st.warning("👉 Save the IG Chemical Solutions logo as **logo.png** in the same folder as this script.")
 
-st.markdown('<h1 class="main-header">IG Chemical Solutions</h1>', unsafe_allow_html=True)
-st.markdown('<p class="tagline">A New Element in Chemistry • AlkaBoost™ CIP Additive Cost-Savings Calculator</p>', unsafe_allow_html=True)
-st.caption("Built from the official TDS • Primary focus on caustic chemical spend • All other savings optional/unlocked")
+st.markdown('<h1 class="main-header">AlkaBoost™ CIP Additive Cost-Savings Calculator</h1>', unsafe_allow_html=True)
+st.caption("IG Chemical Solutions — igchemicalsolutions.com")
+st.caption("⚠️ Disclaimer: Figures and calculations in this tool are based on general industry assumptions and the most recently available market data. Results are estimates only and may vary based on your specific process conditions, product concentrations, and supplier pricing. Consult your IG Chemical Solutions distributor for a more accurate, site-specific analysis.")
 
 # ====================== SESSION STATE ======================
 if 'last_units_imperial' not in st.session_state:
@@ -175,10 +175,12 @@ with col1:
 
 with col2:
     delta_chem = net_chemical_savings
+    # Positive savings = cost went DOWN = show down arrow in green
+    # Negative savings = cost went UP = show up arrow in red
     st.metric("New Annual Chemical Cost (NaOH + AlkaBoost™)",
               f"${with_chemical_cost:,.0f}",
-              delta=f"${delta_chem:,.0f}" if delta_chem >= 0 else f"-${abs(delta_chem):,.0f}",
-              delta_color="normal" if delta_chem >= 0 else "inverse")
+              delta=f"-${delta_chem:,.0f}" if delta_chem >= 0 else f"${abs(delta_chem):,.0f}",
+              delta_color="inverse")
 
 with col3:
     if net_savings >= 0:
@@ -233,7 +235,7 @@ with st.expander("🔍 Distributor Margin Analysis"):
 
 # ====================== DOWNLOADS ======================
 csv = df_summary.to_csv(index=False).encode()
-st.download_button("📥 Download results as CSV", csv, "AlkaBoost_Savings_Report.csv", "text/csv")
+st.download_button("📥 Download (CSV)", csv, "AlkaBoost_Savings_Report.csv", "text/csv")
 
 
 def create_pdf_report():
@@ -241,35 +243,36 @@ def create_pdf_report():
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
 
-    # Add logo if present
-    if os.path.exists(logo_path):
-        try:
-            c.drawImage(logo_path, 50, height - 110, width=220, height=70, preserveAspectRatio=True)
-        except Exception:
-            pass
-
     c.setFont("Helvetica-Bold", 22)
-    c.drawString(300, height - 70, "AlkaBoost™ CIP Savings Report")
+    c.drawString(50, height - 60, "AlkaBoost™ CIP Savings Report")
     c.setFont("Helvetica", 11)
-    c.drawString(300, height - 95, f"Location: {location} • Units: {units} • Generated: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
+    c.drawString(50, height - 85, f"Location: {location} • Units: {units} • Generated: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
 
-    y = height - 160
+    y = height - 130
     for _, row in df_summary.iterrows():
         c.drawString(50, y, f"{row['Metric']}: {row['Value']}")
         y -= 24
-        if y < 80:
+        if y < 120:
             c.showPage()
             y = height - 50
 
+    # Logo at the bottom of the last page
+    logo_y = 30
+    if os.path.exists(logo_path):
+        try:
+            c.drawImage(logo_path, 50, logo_y, width=180, height=56, preserveAspectRatio=True)
+        except Exception:
+            pass
     c.setFont("Helvetica-Oblique", 9)
-    c.drawString(50, 50, "IG Chemical Solutions • Official AlkaBoost™ TDS • Comprehensive model with recycled CIP support")
+    c.drawString(240, 50, "IG Chemical Solutions • Results are estimates based on general assumptions. Consult your distributor for site-specific analysis.")
+
     c.save()
     buffer.seek(0)
     return buffer
 
 
 pdf_bytes = create_pdf_report()
-st.download_button("📄 Save as Professional PDF Report (with logo)",
+st.download_button("📄 Save Report (PDF)",
                    data=pdf_bytes,
                    file_name="AlkaBoost_CIP_Savings_Report.pdf",
                    mime="application/pdf")
