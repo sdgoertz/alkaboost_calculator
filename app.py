@@ -123,70 +123,85 @@ with st.sidebar:
     elif preset == "Custom / Enter Your Own":
         st.session_state.last_preset = "Custom / Enter Your Own"
 
-    # ── CIP Parameters ───────────────────────────────────────────────────────
-    st.subheader("CIP Parameters")
+    # ── Simple: Chemical Cost & Pricing ─────────────────────────────────────
+    with st.expander("💡 Simple: Chemical Cost & Pricing", expanded=True):
+        st.subheader("CIP Parameters")
 
-    cycles_per_year = st.number_input(
-        "CIP Cycles Per Year", min_value=1, step=1,
-        value=st.session_state.get("w_cycles", 260), key="w_cycles",
-        help="260 = once per working day (M–F). 365 = daily including weekends. "
-             "130 = every other working day. Adjust to match your plant's actual schedule.")
+        cycles_per_year = st.number_input(
+            "CIP Cycles Per Year", min_value=1, step=1,
+            value=st.session_state.get("w_cycles", 260), key="w_cycles",
+            help="260 = once per working day (M–F). 365 = daily including weekends. "
+                 "130 = every other working day. Adjust to match your plant's actual schedule.")
 
-    annual_naoh_baseline = st.number_input(
-        f"Annual NaOH Usage — Baseline ({mass_unit}/Year)",
-        value=st.session_state.annual_naoh_baseline,
-        min_value=100, step=1, key="w_naoh",
-        help="Total lbs (or kg) of NaOH purchased/consumed across all CIP cycles in a year "
-             "before AlkaBoost™. Check your annual caustic purchase records.")
+        annual_naoh_baseline = st.number_input(
+            f"Annual NaOH Usage — Baseline ({mass_unit}/Year)",
+            value=st.session_state.annual_naoh_baseline,
+            min_value=100, step=1, key="w_naoh",
+            help="Total lbs (or kg) of NaOH purchased/consumed across all CIP cycles in a year "
+                 "before AlkaBoost™. Check your annual caustic purchase records.")
 
-    baseline_naoh_pct = st.number_input(
-        "NaOH Concentration (%)", min_value=0.5, step=0.1,
-        value=st.session_state.get("w_conc", 5.0), key="w_conc",
-        help="Your current NaOH set-point in the use solution (e.g. 3–5%). "
-             "Used to derive solution volume for water savings in Advanced mode.")
+        st.subheader("AlkaBoost™ Effects")
 
-    # ── AlkaBoost™ Effects ───────────────────────────────────────────────────
-    st.subheader("AlkaBoost™ Effects")
+        naoh_reduction_pct = st.slider(
+            "NaOH Consumption Reduction With AlkaBoost™ (%)", 0, 50, 30, step=1,
+            help="How much less caustic is needed while achieving equal or better cleaning. "
+                 "25–35% is a conservative field estimate; some customers have reported reductions of up to 50%.")
 
-    naoh_reduction_pct = st.slider(
-        "NaOH Consumption Reduction With AlkaBoost™ (%)", 0, 50, 30, step=1,
-        help="How much less caustic is needed while achieving equal or better cleaning. "
-             "25–35% is a conservative field estimate; some customers have reported reductions of up to 50%.")
+        cycle_reduction_pct = st.slider(
+            "Reduction In CIP Frequency (%)", 0, 50, 0, step=1,
+            help="Fewer CIPs needed over time due to superior cleaning performance.")
 
-    cycle_reduction_pct = st.slider(
-        "Reduction In CIP Frequency (%)", 0, 50, 0, step=1,
-        help="Fewer CIPs needed over time due to superior cleaning performance.")
+        st.subheader("AlkaBoost™ & Pricing")
 
-    # ── AlkaBoost™ & Pricing ─────────────────────────────────────────────────
-    st.subheader("AlkaBoost™ & Pricing")
+        your_price_to_dist = st.number_input(
+            f"Your Price To Distributor Per {mass_unit}",
+            value=st.session_state.price_your_dist,
+            min_value=0.0, step=0.01, key="w_dist",
+            help="Your selling price to the distributor.")
 
-    your_price_to_dist = st.number_input(
-        f"Your Price To Distributor Per {mass_unit}",
-        value=st.session_state.price_your_dist,
-        min_value=0.0, step=0.01, key="w_dist",
-        help="Your selling price to the distributor.")
+        freight_per_lb = st.number_input(
+            f"Estimated Inbound Freight Per {mass_unit} (Manufacturer → Distributor)",
+            value=st.session_state.price_freight,
+            min_value=0.0, step=0.01, key="w_freight",
+            help="Freight cost per lb/kg from the IG Chemical Solutions manufacturing facility "
+                 "to the distributor's warehouse. Used to calculate the distributor's landed cost. "
+                 "Freight from the distributor to the end-user is a separate negotiation between "
+                 "the distributor and their customer.")
 
-    freight_per_lb = st.number_input(
-        f"Estimated Inbound Freight Per {mass_unit} (Manufacturer → Distributor)",
-        value=st.session_state.price_freight,
-        min_value=0.0, step=0.01, key="w_freight",
-        help="Freight cost per lb/kg from the IG Chemical Solutions manufacturing facility "
-             "to the distributor's warehouse. Used to calculate the distributor's landed cost. "
-             "Freight from the distributor to the end-user is a separate negotiation between "
-             "the distributor and their customer.")
+        distributor_landed_cost = your_price_to_dist + freight_per_lb
 
-    distributor_landed_cost = your_price_to_dist + freight_per_lb
+        additive_price = st.number_input(
+            f"Customer Quoted AlkaBoost™ Price Per {mass_unit}",
+            value=st.session_state.price_additive,
+            min_value=0.0, step=0.01, key="w_additive",
+            help="The price the end-customer actually pays (after distributor markup).")
 
-    additive_price = st.number_input(
-        f"Customer Quoted AlkaBoost™ Price Per {mass_unit}",
-        value=st.session_state.price_additive,
-        min_value=0.0, step=0.01, key="w_additive",
-        help="The price the end-customer actually pays (after distributor markup).")
+        # ── Quick Summary (inline, chemical savings only) ────────────────────
+        st.markdown("---")
+        st.caption("📊 Quick Summary — Chemical Savings Only")
+        _cycles_with_s = cycles_per_year * (1 - cycle_reduction_pct / 100)
+        _naoh_pc_s     = annual_naoh_baseline / cycles_per_year if cycles_per_year > 0 else 0
+        _naoh_with_s   = _naoh_pc_s * (1 - naoh_reduction_pct / 100) * _cycles_with_s
+        _additive_s    = _naoh_pc_s * (1 - naoh_reduction_pct / 100) * 0.10 * _cycles_with_s
+        _chem_sav_s    = (annual_naoh_baseline - _naoh_with_s) * naoh_default
+        _add_cost_s    = _additive_s * additive_price
+        _net_chem_s    = _chem_sav_s - _add_cost_s
+        _bep_s         = _chem_sav_s / _additive_s if _additive_s > 0 else 0
+        st.write(f"Chemical Savings: **${_chem_sav_s:,.0f}**")
+        st.write(f"Additive Annual Cost: **${_add_cost_s:,.0f}**")
+        st.write(f"Net Chemical Savings: **${_net_chem_s:,.0f}**")
+        st.write(f"Customer Break-Even: **${_bep_s:.2f}** / {mass_unit}")
 
     # ── Advanced: Additional Operating Savings ───────────────────────────────
     with st.expander("🔬 Advanced: Include Additional Operating Savings (Energy, Water, Labor, Maintenance)"):
         include_other_savings = st.checkbox(
             "✅ Add These To The Net Savings Calculation", value=False, key="include_other")
+
+        baseline_naoh_pct = st.number_input(
+            "NaOH Concentration (%)", min_value=0.5, step=0.1,
+            value=st.session_state.get("w_conc", 5.0), key="w_conc",
+            help="Your current NaOH set-point in the use solution (e.g. 3–5%). "
+                 "Used to derive solution volume for water savings calculations.")
 
         fresh_makeup_pct = st.slider(
             "Fresh Solution Makeup Per CIP Cycle (%)", min_value=10, max_value=100, value=100, step=5,
@@ -282,6 +297,7 @@ break_even_price          = (chemical_savings + total_other_savings) / additive_
 naoh_cost_reduction_pct = (chemical_savings / baseline_chemical_cost * 100) if baseline_chemical_cost > 0 else 0
 payback_months          = (additive_total_cost / (net_savings / 12)) if net_savings > 0 else float('inf')
 roi_pct                 = (net_savings / additive_total_cost * 100) if additive_total_cost > 0 else 0
+pb = f"{payback_months:.1f} months" if payback_months != float('inf') else "N/A"
 
 # ====================== DISPLAY ======================
 col1, col2, col3 = st.columns(3)
@@ -298,8 +314,6 @@ with col3:
     st.markdown(f"<h3 style='color:{color};'>Net Annual Savings<br>${net_savings:,.0f}</h3>",
                 unsafe_allow_html=True)
 
-pb = f"{payback_months:.1f} months" if payback_months != float('inf') else "N/A"
-
 st.divider()
 
 # Summary table
@@ -309,20 +323,25 @@ _metrics = [
     f"NaOH Used Per Year — With AlkaBoost™ ({mass_unit})",
     f"AlkaBoost™ Used Per Year ({mass_unit})",
     "Chemical Savings (NaOH Reduction Only)",
-    "Net Chemical Savings (After Additive Cost)",
 ]
 _values = [
     f"{naoh_baseline_annual:,.0f}",
     f"{naoh_with_annual:,.0f}",
     f"{additive_annual:,.0f}",
     f"${chemical_savings:,.0f}",
-    f"${net_chemical_savings:,.0f}",
 ]
-if st.session_state.get("include_other", False) and total_other_savings != 0:
-    _metrics.append("Additional Operating Savings")
-    _values.append(f"${total_other_savings:,.0f}")
+if st.session_state.get("include_other", False):
+    _metrics.append("Net Chemical Savings (After Additive Cost)")
+    _values.append(f"${net_chemical_savings:,.0f}")
+    if total_other_savings != 0:
+        _metrics.append("Additional Operating Savings")
+        _values.append(f"${total_other_savings:,.0f}")
 _metrics.append("Net Annual Savings")
 _values.append(f"${net_savings:,.0f}")
+_metrics.append("Estimated Payback Period")
+_values.append(pb)
+_metrics.append("Return On Investment (%)")
+_values.append(f"{roi_pct:.1f}%")
 
 if st.session_state.get("include_other", False):
     _metrics.append(f"Customer Break-Even Price — Chemical Savings Only (Per {mass_unit})")
