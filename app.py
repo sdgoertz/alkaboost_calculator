@@ -170,7 +170,9 @@ with st.sidebar:
         f"Estimated Freight Per {mass_unit} To Customer Site ($)",
         value=st.session_state.price_freight,
         min_value=0.0, step=0.01, key="w_freight",
-        help="Shipping cost per lb/kg to the customer's site.")
+        help="Total landed freight cost per lb/kg, covering all shipping legs — "
+             "manufacturer to distributor warehouse, plus last-mile delivery to the end-user facility. "
+             "Use the actual freight invoice or carrier quote for accuracy.")
 
     distributor_landed_cost = your_price_to_dist + freight_per_lb
 
