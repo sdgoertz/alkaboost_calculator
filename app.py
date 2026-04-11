@@ -187,7 +187,7 @@ with st.sidebar:
         _add_cost_s    = _additive_s * additive_price
         _net_chem_s    = _chem_sav_s - _add_cost_s
         _bep_s         = _chem_sav_s / _additive_s if _additive_s > 0 else 0
-        st.write(f"Chemical Savings: **${_chem_sav_s:,.0f}**")
+        st.write(f"Caustic Savings: **${_chem_sav_s:,.0f}**")
         st.write(f"Additive Annual Cost: **${_add_cost_s:,.0f}**")
         st.write(f"Net Chemical Savings: **${_net_chem_s:,.0f}**")
         st.write(f"Customer Break-Even: **${_bep_s:.2f}** / {mass_unit}")
