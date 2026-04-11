@@ -57,7 +57,10 @@ _PRESETS = {
 with st.sidebar:
     st.header("📍 Customer Location & Units")
     location = st.text_input("Customer Location", value="United States",
-                             help="Type any location (e.g. Puebla, Laredo TX, Veracruz). Auto-detects NaOH market price.")
+                             help="Affects the auto-filled NaOH market price (visible in the Advanced section). "
+                                  "Pricing is based on static general market estimates for 50% liquid caustic delivered — "
+                                  "no live data is pulled. Always override with the customer's actual contract price "
+                                  "for accurate results. Currently recognized regions: United States and Mexico.")
 
     units = st.radio("Units System", ["Imperial (lb, gal, °F, USD)", "Metric (kg, L, °C, USD)"],
                      horizontal=True, key="units_radio")
@@ -147,7 +150,8 @@ with st.sidebar:
 
     naoh_reduction_pct = st.slider(
         "NaOH Consumption Reduction With AlkaBoost™ (%)", 0, 50, 30, step=1,
-        help="How much less caustic is needed while achieving equal or better cleaning. Typical: 25–35%.")
+        help="How much less caustic is needed while achieving equal or better cleaning. "
+             "25–35% is a conservative field estimate; some customers have reported reductions of up to 50%.")
 
     cycle_reduction_pct = st.slider(
         "Reduction In CIP Frequency (%)", 0, 50, 0, step=1,
@@ -201,15 +205,30 @@ with st.sidebar:
         energy_cost_per_cycle = st.number_input(
             "Baseline Energy Cost Per CIP ($)", value=45.0, step=1.0,
             help="Steam / electricity cost to heat and run the CIP.")
-        energy_savings_pct = st.slider("Energy Savings % (Lower Temp/Shorter Time)", 0, 40, 15, step=5)
+        energy_savings_pct = st.slider(
+            "Energy Savings % (Lower Temp/Shorter Time)", 0, 40, 15, step=5,
+            help="AlkaBoost™ improves cleaning efficacy at lower temperatures and shorter contact times, "
+                 "reducing steam and electricity costs. 10–20% is a typical conservative estimate.")
         water_cost_per_vol = st.number_input(
             f"Water + Wastewater Cost Per {vol_unit}",
-            value=st.session_state.water_cost_per_vol, key="w_water", step=0.001)
-        labor_cost_per_cycle = st.number_input("Labor + Downtime Cost Per CIP ($)", value=120.0, step=5.0)
+            value=st.session_state.water_cost_per_vol, key="w_water", step=0.001,
+            help="Combined cost of water supply and wastewater treatment per gallon (or liter). "
+                 "Check your utility bill — many plants underestimate wastewater surcharges. "
+                 "US average is roughly $0.01–$0.02/gal combined.")
+        labor_cost_per_cycle = st.number_input(
+            "Labor + Downtime Cost Per CIP ($)", value=120.0, step=5.0,
+            help="Fully-loaded cost of labor, lost production time, and line downtime for one CIP cycle. "
+                 "Include operator time, QA verification, and any scheduled production delays.")
         maintenance_savings_per_year = st.number_input(
-            "Annual Maintenance/Equipment-Life Savings ($)", value=2500.0, step=100.0)
+            "Annual Maintenance/Equipment-Life Savings ($)", value=2500.0, step=100.0,
+            help="Lower caustic concentrations and better surfactancy reduce scale buildup, corrosion, "
+                 "and wear on pumps, valves, and heat exchangers. Estimate based on reduced descaling "
+                 "frequency or extended equipment service intervals.")
         other_chemical_savings_annual = st.number_input(
-            "Other Chemical (Acid/Sanitizer) Savings Per Year ($)", value=0.0, step=100.0)
+            "Other Chemical (Acid/Sanitizer) Savings Per Year ($)", value=0.0, step=100.0,
+            help="Savings from reducing acid or sanitizer use. AlkaBoost™'s improved cleaning performance "
+                 "can reduce the need for acid CIP steps — and some users have eliminated the acid step "
+                 "in their CIP process entirely.")
 
 # ====================== CALCULATIONS ======================
 naoh_baseline_annual    = annual_naoh_baseline
@@ -253,8 +272,9 @@ if st.session_state.get("include_other", False):
 else:
     total_other_savings = 0.0
 
-net_savings      = chemical_savings + total_other_savings - additive_total_cost
-break_even_price = (chemical_savings + total_other_savings) / additive_annual if additive_annual > 0 else 0.0
+net_savings               = chemical_savings + total_other_savings - additive_total_cost
+break_even_price_chem     = chemical_savings / additive_annual if additive_annual > 0 else 0.0
+break_even_price          = (chemical_savings + total_other_savings) / additive_annual if additive_annual > 0 else 0.0
 
 naoh_cost_reduction_pct = (chemical_savings / baseline_chemical_cost * 100) if baseline_chemical_cost > 0 else 0
 payback_months          = (additive_total_cost / (net_savings / 12)) if net_savings > 0 else float('inf')
@@ -298,15 +318,23 @@ _values = [
 if st.session_state.get("include_other", False) and total_other_savings != 0:
     _metrics.append("Additional Operating Savings")
     _values.append(f"${total_other_savings:,.0f}")
+_metrics.append("Net Annual Savings")
+_values.append(f"${net_savings:,.0f}")
+
+if st.session_state.get("include_other", False):
+    _metrics.append(f"Customer Break-Even Price — Chemical Savings Only (Per {mass_unit})")
+    _values.append(f"${break_even_price_chem:.2f}")
+    _metrics.append(f"Customer Break-Even Price — Total All Savings (Per {mass_unit})")
+    _values.append(f"${break_even_price:.2f}")
+else:
+    _metrics.append(f"Customer Break-Even Price Per {mass_unit}")
+    _values.append(f"${break_even_price:.2f}")
+
 _metrics += [
-    "Net Annual Savings",
-    f"Customer Break-Even Price Per {mass_unit}",
     f"Distributor Landed Cost Per {mass_unit} (Your Price + Freight)",
     "Distributor Margin Room At Customer Break-Even",
 ]
 _values += [
-    f"${net_savings:,.0f}",
-    f"${break_even_price:.2f}",
     f"${distributor_landed_cost:.2f}",
     f"${max(0, break_even_price - distributor_landed_cost):.2f}",
 ]
@@ -328,8 +356,8 @@ with st.expander("🔍 Distributor Margin Analysis"):
 
 # ====================== LEAD CAPTURE + DOWNLOADS ======================
 st.divider()
-st.subheader("📋 Contact Information")
-st.caption("Please complete all fields below to enable the downloadable report.")
+st.subheader("📩 Save Your Results")
+st.caption("Enter your info below to unlock the PDF report, CSV download, and email link.")
 
 lc1, lc2 = st.columns(2)
 with lc1:
