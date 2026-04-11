@@ -19,13 +19,12 @@ st.markdown("""
 
 logo_path = "logo.png"
 if os.path.exists(logo_path):
-    st.image(logo_path, width=420)
+    st.image(logo_path, width=210)
 else:
     st.warning("👉 Save the IG Chemical Solutions logo as **logo.png** in the same folder as this script.")
 
 st.markdown('<h1 class="main-header">AlkaBoost™ CIP Additive Cost-Savings Calculator</h1>', unsafe_allow_html=True)
 st.caption("IG Chemical Solutions — igchemicalsolutions.com")
-st.caption("⚠️ Disclaimer: Figures and calculations in this tool are based on general industry assumptions and the most recently available market data. Results are estimates only and may vary based on your specific process conditions, product concentrations, and supplier pricing. Consult your IG Chemical Solutions distributor for a more accurate, site-specific analysis.")
 
 # ====================== SESSION STATE ======================
 if 'last_units_imperial' not in st.session_state:
@@ -184,41 +183,43 @@ with col2:
 
 with col3:
     if net_savings >= 0:
-        st.markdown(f"<h3 style='color:#16a34a;'>Net Annual Savings to Customer<br>${net_savings:,.0f}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color:#16a34a;'>Net Annual Savings<br>${net_savings:,.0f}</h3>", unsafe_allow_html=True)
     else:
-        st.markdown(f"<h3 style='color:#dc2626;'>Net Annual Savings to Customer<br>${net_savings:,.0f}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color:#dc2626;'>Net Annual Savings<br>${net_savings:,.0f}</h3>", unsafe_allow_html=True)
 
 st.divider()
 
 st.subheader("📊 Full Summary Table")
-df_summary = pd.DataFrame({
-    "Metric": [
-        f"NaOH used per year (baseline) ({mass_unit})",
-        f"NaOH used per year (with AlkaBoost™) ({mass_unit})",
-        f"AlkaBoost™ used per year ({mass_unit})",
-        "Chemical savings (NaOH reduction only)",
-        "Net chemical savings (after additive cost)",
-        "Additional operating savings (if unlocked)",
-        "Total gross savings",
-        "Net annual savings to customer",
-        f"Customer break-even price per {mass_unit}",
-        "Distributor landed cost per lb/kg (your price + freight)",
-        "Distributor margin room at customer break-even"
-    ],
-    "Value": [
-        f"{naoh_baseline_annual:,.0f}",
-        f"{naoh_with_annual:,.0f}",
-        f"{additive_annual:,.0f}",
-        f"${chemical_savings:,.0f}",
-        f"${net_chemical_savings:,.0f}",
-        f"${total_other_savings:,.0f}",
-        f"${gross_savings:,.0f}",
-        f"${net_savings:,.0f}",
-        f"${break_even_price:.2f}",
-        f"${distributor_landed_cost:.2f}",
-        f"${max(0, break_even_price - distributor_landed_cost):.2f}"
-    ]
-})
+_metrics = [
+    f"NaOH used per year (baseline) ({mass_unit})",
+    f"NaOH used per year (with AlkaBoost™) ({mass_unit})",
+    f"AlkaBoost™ used per year ({mass_unit})",
+    "Chemical savings (NaOH reduction only)",
+    "Net chemical savings (after additive cost)",
+]
+_values = [
+    f"{naoh_baseline_annual:,.0f}",
+    f"{naoh_with_annual:,.0f}",
+    f"{additive_annual:,.0f}",
+    f"${chemical_savings:,.0f}",
+    f"${net_chemical_savings:,.0f}",
+]
+if st.session_state.get("include_other", False) and total_other_savings != 0:
+    _metrics.append("Additional operating savings")
+    _values.append(f"${total_other_savings:,.0f}")
+_metrics += [
+    "Net annual savings",
+    f"Customer break-even price per {mass_unit}",
+    "Distributor landed cost per lb/kg (your price + freight)",
+    "Distributor margin room at customer break-even",
+]
+_values += [
+    f"${net_savings:,.0f}",
+    f"${break_even_price:.2f}",
+    f"${distributor_landed_cost:.2f}",
+    f"${max(0, break_even_price - distributor_landed_cost):.2f}",
+]
+df_summary = pd.DataFrame({"Metric": _metrics, "Value": _values})
 st.dataframe(df_summary, use_container_width=True, hide_index=True)
 
 st.info("**Dosing per TDS:** AlkaBoost™ = 10 % by weight of the NaOH in the use solution. Recycled CIP systems fully supported.")
@@ -246,7 +247,7 @@ def create_pdf_report():
     c.setFont("Helvetica-Bold", 22)
     c.drawString(50, height - 60, "AlkaBoost™ CIP Savings Report")
     c.setFont("Helvetica", 11)
-    c.drawString(50, height - 85, f"Location: {location} • Units: {units} • Generated: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
+    c.drawString(50, height - 85, f"Location: {location}  |  Units: {units}  |  Generated: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
 
     y = height - 130
     for _, row in df_summary.iterrows():
@@ -257,14 +258,13 @@ def create_pdf_report():
             y = height - 50
 
     # Logo at the bottom of the last page
-    logo_y = 30
     if os.path.exists(logo_path):
         try:
-            c.drawImage(logo_path, 50, logo_y, width=180, height=56, preserveAspectRatio=True)
+            c.drawImage(logo_path, 50, 28, width=160, height=50, preserveAspectRatio=True)
         except Exception:
             pass
-    c.setFont("Helvetica-Oblique", 9)
-    c.drawString(240, 50, "IG Chemical Solutions • Results are estimates based on general assumptions. Consult your distributor for site-specific analysis.")
+    c.setFont("Helvetica-Oblique", 8)
+    c.drawString(50, 18, "Results are estimates. Dosing per manufacturer recommendation (AlkaBoost TDS). Consult your distributor for site-specific analysis.")
 
     c.save()
     buffer.seek(0)
@@ -277,4 +277,11 @@ st.download_button("📄 Save Report (PDF)",
                    file_name="AlkaBoost_CIP_Savings_Report.pdf",
                    mime="application/pdf")
 
-st.caption("✅ Annual caustic-solution volume input • Chemical-focused dashboard • Color-coded net savings • Other savings unlocked in expander • PDF includes logo")
+st.divider()
+st.caption(
+    "Disclaimer: Figures and calculations in this tool are based on general industry assumptions, "
+    "the most recently available market data, and manufacturer-recommended dosing rates per the "
+    "AlkaBoost™ Technical Data Sheet (TDS). Results are estimates only and may vary based on your "
+    "specific process conditions, product concentrations, and supplier pricing. "
+    "Consult your IG Chemical Solutions distributor for a more accurate, site-specific analysis."
+)
