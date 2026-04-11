@@ -275,18 +275,7 @@ with col3:
     st.markdown(f"<h3 style='color:{color};'>Net Annual Savings<br>${net_savings:,.0f}</h3>",
                 unsafe_allow_html=True)
 
-# ROI strip
-r1, r2, r3 = st.columns(3)
-with r1:
-    st.metric("Caustic Cost Reduction", f"{naoh_cost_reduction_pct:.1f}%",
-              help="Percentage reduction in annual NaOH spend with AlkaBoost™.")
-with r2:
-    pb = f"{payback_months:.1f} months" if payback_months != float('inf') else "N/A"
-    st.metric("Estimated Payback Period", pb,
-              help="Months until AlkaBoost™ additive costs are fully offset by savings.")
-with r3:
-    st.metric("Return On Investment", f"{roi_pct:.0f}%",
-              help="Net savings as a percentage of the annual AlkaBoost™ spend.")
+pb = f"{payback_months:.1f} months" if payback_months != float('inf') else "N/A"
 
 st.divider()
 
