@@ -170,9 +170,10 @@ with st.sidebar:
         f"Estimated Freight Per {mass_unit} To Customer Site ($)",
         value=st.session_state.price_freight,
         min_value=0.0, step=0.01, key="w_freight",
-        help="Total landed freight cost per lb/kg, covering all shipping legs — "
-             "manufacturer to distributor warehouse, plus last-mile delivery to the end-user facility. "
-             "Use the actual freight invoice or carrier quote for accuracy.")
+        help="Freight cost per lb/kg from the IG Chemical Solutions manufacturing facility "
+             "to the distributor's warehouse. Used to calculate the distributor's landed cost. "
+             "Freight from the distributor to the end-user is a separate negotiation between "
+             "the distributor and their customer.")
 
     distributor_landed_cost = your_price_to_dist + freight_per_lb
 
