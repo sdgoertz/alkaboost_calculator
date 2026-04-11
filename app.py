@@ -351,10 +351,14 @@ st.info("**Dosing Per TDS:** AlkaBoost™ = 10% by weight of the NaOH in the use
 with st.expander("🔍 Distributor Margin Analysis"):
     st.write(f"Your Price To Distributor: **${your_price_to_dist:.2f}** per {mass_unit}")
     st.write(f"Freight: **${freight_per_lb:.2f}** per {mass_unit}")
-    st.write(f"**Distributor Landed Cost:** ${distributor_landed_cost:.2f}")
+    st.write(f"**Distributor Landed Cost:** ${distributor_landed_cost:.2f} per {mass_unit}")
+    if st.session_state.get("include_other", False):
+        st.write(f"**Customer Break-Even Price (Total All Savings):** ${break_even_price:.2f} per {mass_unit}")
+    else:
+        st.write(f"**Customer Break-Even Price (Chemical Savings):** ${break_even_price_chem:.2f} per {mass_unit}")
     if additive_annual > 0:
         margin_room = max(0, break_even_price - distributor_landed_cost)
-        st.success(f"**Distributor Has ${margin_room:.2f} Per {mass_unit} Of Margin Room**")
+        st.success(f"**Distributor has up to ${margin_room:.2f} per {mass_unit} of potential margin to negotiate**")
     else:
         st.warning("No additive volume calculated.")
 
