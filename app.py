@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import io
-import matplotlib.pyplot as plt
 import urllib.parse
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -288,28 +287,6 @@ with r2:
 with r3:
     st.metric("Return On Investment", f"{roi_pct:.0f}%",
               help="Net savings as a percentage of the annual AlkaBoost™ spend.")
-
-st.divider()
-
-# Bar chart: stacked comparison
-fig, ax = plt.subplots(figsize=(7, 3.5))
-ax.bar(["Baseline"], [baseline_chemical_cost], color="#ef4444", alpha=0.85, width=0.4, label="NaOH Cost")
-ax.bar(["With AlkaBoost™"], [naoh_with_cost],   color="#3b82f6", alpha=0.85, width=0.4, label="NaOH Cost (Reduced)")
-ax.bar(["With AlkaBoost™"], [additive_total_cost], bottom=[naoh_with_cost],
-       color="#16a34a", alpha=0.85, width=0.4, label="AlkaBoost™ Cost")
-for x, v in [("Baseline", baseline_chemical_cost), ("With AlkaBoost™", with_chemical_cost)]:
-    ax.text(x, v + max(baseline_chemical_cost, with_chemical_cost) * 0.02,
-            f"${v:,.0f}", ha="center", fontweight="bold", fontsize=10)
-ax.set_ylabel("Annual Chemical Cost ($)")
-ax.set_title("Annual Chemical Cost: Baseline vs. With AlkaBoost™", fontweight="bold", pad=12)
-ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"${x:,.0f}"))
-ax.legend(loc="upper right", fontsize=9)
-ax.spines["top"].set_visible(False)
-ax.spines["right"].set_visible(False)
-ax.set_ylim(0, max(baseline_chemical_cost, with_chemical_cost) * 1.18)
-plt.tight_layout()
-st.pyplot(fig)
-plt.close(fig)
 
 st.divider()
 
