@@ -342,7 +342,8 @@ _values += [
     f"${max(0, break_even_price - distributor_landed_cost):.2f}",
 ]
 df_summary = pd.DataFrame({"Metric": _metrics, "Value": _values})
-st.dataframe(df_summary, use_container_width=True, hide_index=True)
+st.dataframe(df_summary, use_container_width=True, hide_index=True,
+             height=(len(df_summary) + 1) * 35 + 3)
 
 st.info("**Dosing Per TDS:** AlkaBoost™ = 10% by weight of the NaOH in the use solution.")
 
