@@ -167,7 +167,7 @@ with st.sidebar:
         help="Your selling price to the distributor.")
 
     freight_per_lb = st.number_input(
-        f"Estimated Freight Per {mass_unit} To Customer Site ($)",
+        f"Estimated Inbound Freight Per {mass_unit} (Manufacturer → Distributor)",
         value=st.session_state.price_freight,
         min_value=0.0, step=0.01, key="w_freight",
         help="Freight cost per lb/kg from the IG Chemical Solutions manufacturing facility "
